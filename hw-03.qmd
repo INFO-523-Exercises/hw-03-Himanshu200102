@@ -1,0 +1,1445 @@
+---
+title: "hw-03"
+author: "Himanshu Nimbarte"
+format: html
+editor: visual
+---
+
+## Classification: Basic Concepts and Techniques
+
+### Installing packages required:
+
+```{r}
+if(!require(pacman))
+  install.packages("pacman")
+
+pacman::p_load(tidyverse, rpart, rpart.plot, caret,
+  lattice, FSelector, sampling, pROC, mlbench,formattable)
+```
+
+### The Dataset: Spam E-Mail
+
+```{r}
+spam <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-08-15/spam.csv')
+
+```
+
+```{r}
+if(!require(tidytuesdayR))
+install.packages("tidytuesdayR")
+library("tidytuesdayR")
+```
+
+```{r}
+data(spam, package="tidytuesdayR")
+head(spam)
+```
+
+```{r}
+  spam <- spam |>
+  mutate(across(where(is.logical), factor, levels = c(TRUE, FALSE))) |>
+  mutate(across(where(is.character), factor))
+```
+
+```{r}
+summary(spam)
+```
+
+### Decision Trees:
+
+Recursive Partitioning (similar to CART) uses the Gini index to make splitting decisions and early stopping (pre-pruning).
+
+```{r}
+library(rpart)
+```
+
+```{r}
+tree_default <- spam |>
+  rpart(yesno ~ ., data = _)
+tree_default
+```
+
+```{r}
+library(rpart.plot)
+rpart.plot(tree_default, extra = 2)
+```
+
+### **Create a Full Tree**
+
+To create a full tree, we set the complexity parameter cp to 0 (split even if it does not improve the tree) and we set the minimum number of observations in a node needed to split to the smallest value of 2 (see: `?rpart.control`).
+
+```{r}
+tree_full <- spam |>
+  rpart(yesno ~ . , data = _,
+        control = rpart.control(minsplit = 2, cp = 0))
+rpart.plot(tree_full, extra = 2,
+           roundint=FALSE,
+            box.palette = list("Gy", "Gn", "Bu", "Bn",
+                               "Or", "Rd", "Pu")) # specify 7 colors
+```
+
+```{r}
+tree_full
+```
+
+Training error on tree with pre-pruning
+
+```{r}
+predict(tree_default, spam) |> head ()
+```
+
+```{r}
+pred <- predict(tree_default, spam, type="class")
+head(pred)
+```
+
+```{r}
+confusion_table <- with(spam, table(yesno, pred))
+confusion_table
+```
+
+```{r}
+correct <- confusion_table |> diag() |> sum()
+correct
+```
+
+```{r}
+error <- confusion_table |> sum() - correct
+error
+```
+
+```{r}
+accuracy <- correct / (correct + error)
+accuracy
+```
+
+Use a function for accuracy:
+
+```{r}
+accuracy <- function(truth, prediction) {
+    tbl <- table(truth, prediction)
+    sum(diag(tbl))/sum(tbl)
+}
+
+accuracy(spam |> pull(yesno), pred)
+```
+
+Training error of the full tree
+
+```{r}
+accuracy(spam |> pull(yesno),
+         predict(tree_full, spam, type = "class"))
+```
+
+Get a confusion table with more statistics (using caret):
+
+```{r}
+library(caret)
+confusionMatrix(data = pred,
+                reference = spam |> pull(yesno))
+```
+
+### **Make Predictions for New Data:**
+
+```{r}
+new_mail <- tibble( crl.tot = 200, dollar = 0.1 , bang = 0.371 , money = 0.03 , n000 = 0 , make = 0.3 )
+```
+
+```{r}
+new_mail <- new_mail |>
+  mutate(across(where(is.logical), factor, levels = c(TRUE, FALSE)))
+new_mail
+```
+
+### Make a prediction using the default tree
+
+```{r}
+predict(tree_default , new_mail, type = "class")
+```
+
+## **Model Evaluation with Caret:**
+
+The package [`caret`](https://topepo.github.io/caret/) makes preparing training sets, building classification (and regression) models and evaluation easier.
+
+```{r}
+library(caret)
+```
+
+Cross-validation runs are independent and can be done faster in parallel. To enable multi-core support, `caret` uses the package `foreach` and you need to load a `do` backend. For Linux, you can use `doMC` with 4 cores. Windows needs different backend like `doParallel`
+
+```{r}
+## Linux backend
+# library(doMC)
+# registerDoMC(cores = 4)
+# getDoParWorkers()
+
+## Windows backend
+# library(doParallel)
+# cl <- makeCluster(4, type="SOCK")
+# registerDoParallel(cl)
+```
+
+Set random number generator seed to make results reproducible:
+
+```{r}
+set.seed(2000)
+```
+
+### **Hold out Test Data**
+
+Test data is not used in the model building process and set aside purely for testing the model. Here, we partition data the 80% training and 20% testing.
+
+```{r}
+unique(spam$yesno)
+```
+
+```{r warning=FALSE}
+inTrain <- createDataPartition(y = spam$yesno, p = .8, list = FALSE)
+spam_train <- spam |> slice(inTrain)
+```
+
+```{r}
+spam_test <- spam |> slice(-inTrain)
+```
+
+### **Learn a Model and Tune Hyperparameters on the Training Data**
+
+The package `caret` combines training and validation for hyperparameter tuning into a single function called `train()`. It internally splits the data into training and validation sets and thus will provide you with error estimates for different hyperparameter settings. `trainControl` is used to choose how testing is performed.
+
+```{r}
+fit <- spam_train |>
+  train(yesno ~ .,
+    data = _ ,
+    method = "rpart",
+    control = rpart.control(minsplit = 2),
+    trControl = trainControl(method = "cv", number = 10),
+    tuneLength = 5)
+
+fit
+```
+
+```{r}
+rpart.plot(fit$finalModel, extra = 2,
+  box.palette = list("Gy", "Gn", "Bu", "Bn", "Or", "Rd", "Pu"))
+```
+
+A model using the best tuning parameters and using all the data supplied to `train()` is available as `fit$finalModel`.
+
+```{r}
+varImp(fit)
+```
+
+```{r}
+imp <- varImp(fit, compete = FALSE)
+imp
+```
+
+```{r}
+ggplot(imp)
+```
+
+## **Testing: Confusion Matrix and Confidence Interval for Accuracy**
+
+Use the best model on the test data
+
+```{r}
+pred <- predict(fit, newdata = spam_test)
+pred
+```
+
+Caret\'s `confusionMatrix()` function calculates accuracy, confidence intervals, kappa and many more evaluation metrics. You need to use separate test data to create a confusion matrix based on the generalization error.
+
+```{r}
+confusionMatrix(data = pred, 
+                ref = spam_test |> pull(yesno))
+```
+
+Several classification algorithms in caret do not handle missing values effectively. If your classification model can handle missing values (such as rpart), use 'na.action = na.pass' when calling the 'train' and 'predict' functions. Otherwise, you should either remove observations with missing values using 'na.omit' or use imputation techniques to replace missing values before training the model. It's essential to ensure that you retain a sufficient number of observations after handling missing values.
+
+Additionally, nominal variables, including logical variables, should be coded as factors. The class variable for 'train' in caret must not have level names that are reserved keywords in R (e.g., TRUE and FALSE). Consider renaming them, for instance, to 'yes' and 'no.'
+
+Ensure that nominal variables (factors) have examples for all possible values. Some methods might encounter issues with variable values lacking examples. You can address this by dropping empty levels using 'droplevels' or 'factor.'
+
+During sampling in 'train,' it's possible to create a sample that lacks examples for all values in a nominal (factor) variable, leading to an error message. This often occurs for variables with exceptionally rare values. In such cases, you might need to consider removing the variable from the analysis.
+
+## Model Comparison
+
+Now we will use k nearest (KNN) classifier and compare it with decision tree. Here we will use 10 folds scheme.
+
+```{r}
+train_index <- createFolds(spam_train$yesno, k = 10)
+```
+
+Build Models
+
+```{r}
+rpartFit <- spam_train |> 
+  train(yesno ~ .,
+        data = _,
+        method = "rpart",
+        tuneLength = 10,
+        trControl = trainControl(method = "cv", indexOut = train_index)
+  )
+```
+
+In the context of kNN, we instruct the 'train' function to standardize the data using the preprocessing method 'scale.' Logical variables are treated as binary (0 or 1) values when calculating Euclidean distances.
+
+```{r}
+knnFit <- spam_train |> 
+  train(yesno ~ .,
+        data = _,
+        method = "knn",
+        preProcess = "scale",
+          tuneLength = 10,
+          trControl = trainControl(method = "cv", indexOut = train_index)
+  )
+```
+
+Comparing accuracy over all folds
+
+```{r}
+resamps <- resamples(list(
+        CART = rpartFit,
+        kNearestNeighbors = knnFit
+        ))
+
+summary(resamps)
+```
+
+```{r}
+library(lattice)
+bwplot(resamps, layout = c(3, 1))
+```
+
+In above plot we can see that KNN is performing similar to CART
+
+Now, we will check statistically if one is better than other.
+
+```{r}
+difs <- diff(resamps)
+difs
+```
+
+```{r}
+summary(difs)
+```
+
+P-values indicate the likelihood of observing a more extreme value (such as the difference in accuracy) assuming the null hypothesis (difference = 0) is accurate. A lower p-value, typically below .05 or 0.01, suggests a superior classifier. The 'diff' function automatically adjusts for multiple comparisons using Bonferroni correction. In this case KNN performs similar to CART and there is no much statistical difference.
+
+## **Feature Selection and Feature Preparation**
+
+Decision trees implicitly select features for splitting, but we can also select features manually.
+
+```{r}
+library(FSelector)
+```
+
+### **Univariate Feature Importance Score**
+
+We can use Chi-Square statistics to derive a score
+
+```{r}
+weights <- spam_train |> 
+  chi.squared(yesno ~ ., data = _) |>
+  as_tibble(rownames = "feature") |>
+  arrange(desc(attr_importance))
+
+weights
+```
+
+```{r}
+ggplot(weights,
+  aes(x = attr_importance, y = reorder(feature, attr_importance))) +
+  geom_bar(stat = "identity") +
+  xlab("Importance score") + 
+  ylab("Feature")
+```
+
+5 Best Features
+
+```{r}
+subset <- cutoff.k(weights |> 
+                   column_to_rownames("feature"), 5)
+subset
+```
+
+We will use the best figures to build the model
+
+```{r}
+f <- as.simple.formula(subset, "yesno")
+f
+```
+
+```{r}
+m <- spam_train |> rpart(f, data = _)
+rpart.plot(m, extra = 2, roundint = FALSE)
+```
+
+```{r}
+spam_train |> 
+  gain.ratio(yesno ~ ., data = _) |>
+  as_tibble(rownames = "feature") |>
+  arrange(desc(attr_importance))
+```
+
+### Feature Subset Section
+
+Frequently, features in a dataset are interconnected, and determining their importance individually might not yield the best results. To address this, we employ heuristic methods like greedy search algorithms. One such method is CFS, which combines correlation and entropy measures with a best-first search approach for feature selection.
+
+```{r}
+spam_train |> 
+  cfs(yesno ~ ., data = _)
+```
+
+Black-box feature selection involves employing an evaluator function (referred to as the black box) to compute a score that needs to be optimized. Initially, we establish an evaluation function, which constructs a model based on a subset of features and computes a quality score. In this case, we utilize the average obtained from 5 bootstrap samples (although the 'cv' method can also be employed), avoid tuning (for efficiency), and consider the average accuracy as the scoring criterion.
+
+```{r}
+evaluator <- function(subset) {
+  model <- spam_train |> 
+    train(as.simple.formula(subset, "yesno"),
+          data = _,
+          method = "rpart",
+          trControl = trainControl(method = "boot", number = 5),
+          tuneLength = 0)
+  results <- model$resample$Accuracy
+  cat("Trying features:", paste(subset, collapse = " + "), "\n")
+  m <- mean(results)
+  cat("Accuracy:", round(m, 2), "\n\n")
+  m
+}
+```
+
+```{r}
+features <- spam_train |> colnames() |> setdiff("yesno")
+```
+
+There are more greedy search strategies available
+
+```{r}
+##subset <- backward.search(features, evaluator)
+##subset <- forward.search(features, evaluator)
+##subset <- best.first.search(features, evaluator)
+##subset <- hill.climbing.search(features, evaluator)
+##subset
+```
+
+### Using Dummy Variable for Factors
+
+Here lets try to find if the email is spam or not by money
+
+```{r}
+money_pred <- spam_train |> 
+  rpart(money ~ yesno, data = _)
+rpart.plot(money_pred, extra = 1, roundint = FALSE)
+```
+
+Converting yesno in 0-1 dummy variable
+
+```{r}
+spam_train_dummy <- as_tibble(class2ind(spam_train$yesno)) |> 
+  mutate(across(everything(), as.factor)) |>
+  add_column(money = spam_train$money)
+spam_train_dummy
+```
+
+```{r}
+spam_money <- spam_train_dummy |> 
+  rpart(money ~ ., 
+        data = _,
+        control = rpart.control(minsplit = 2, cp = 0.01))
+rpart.plot(spam_money, roundint = FALSE)
+```
+
+Using caret will automatically translate the factors
+
+```{r}
+fit <- spam_train |> 
+  train(money ~ yesno, 
+        data = _, 
+        method = "rpart",
+        control = rpart.control(minsplit = 2),
+        tuneGrid = data.frame(cp = 0.01))
+fit
+```
+
+```{r}
+rpart.plot(fit$finalModel, extra = 1)
+```
+
+## Class Imbalance
+
+There is a imbalance problem when we have more observation for one class
+
+```{r}
+library(rpart)
+library(rpart.plot)
+spam <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-08-15/spam.csv')
+```
+
+Class Distribution
+
+```{r}
+ggplot(spam, aes(y = yesno)) + geom_bar()
+```
+
+Here we don't have class imbalance problem
+
+BUT, if we have that problem we will do following
+
+```{r}
+spam_yes <- spam |> 
+  mutate(type = factor(spam$yesno == "yes", 
+                       levels = c(FALSE, TRUE),
+                       labels = c("yes", "no yes")))
+```
+
+```{r}
+summary(spam_yes)
+```
+
+```{r}
+ggplot(spam_yes, aes(y = type)) + geom_bar()
+```
+
+```{r}
+set.seed(1234)
+
+inTrain <- createDataPartition(y = spam_yes$yesno, p = .5, list = FALSE)
+training_yes <- spam_yes |> slice(inTrain)
+testing_yes <- spam_yes |> slice(-inTrain)
+```
+
+### **Option 1: Use the Data As Is and Hope For The Best**
+
+```{r}
+fit <- spam_yes |> 
+  train(yesno ~ .,
+        data = _,
+        method = "rpart",
+        trControl = trainControl(method = "cv"))
+```
+
+```{r}
+fit
+```
+
+```{r}
+rpart.plot(fit$finalModel, extra = 2)
+```
+
+The accuracy rate is high, but it precisely matches the no-information rate, and the kappa value is zero. Additionally, the sensitivity score is zero, indicating an inability to correctly identify any positive cases. In situations where the cost of missing a positive case is significantly higher than misclassifying a negative one, accuracy becomes an inadequate measure. Addressing class imbalance, our focus shifts from accuracy to enhancing sensitivity -- the ability to correctly detect positive cases.
+
+### **Option 2: Balance Data With Resampling**
+
+We employ stratified sampling with replacement to oversample the minority or positive class. Alternatively, methods like SMOTE (available in the DMwR package) or other sampling strategies (such as those from the unbalanced package) can be utilized. In this scenario, we select 50 observations from each class, and it's important to note that many samples might be chosen multiple times during the process.
+
+```{r}
+library(sampling)
+set.seed(1000) # for repeatability
+
+id <- strata(training_yes, stratanames = "type", size = c(50, 50), method = "srswr")
+training_yes_balanced <- training_yes |> 
+  slice(id$ID_unit)
+table(training_yes_balanced$yesno)
+```
+
+```{r}
+fit <- training_yes_balanced |> 
+  train(yesno ~ .,
+        data = _,
+        method = "rpart",
+        trControl = trainControl(method = "cv"),
+        control = rpart.control(minsplit = 5))
+
+fit
+```
+
+```{r}
+rpart.plot(fit$finalModel, extra = 2)
+```
+
+Checkout the unbalanced testing data
+
+```{r}
+confusionMatrix(data = predict(fit, testing_yes),
+                ref = factor(testing_yes$yesno))
+```
+
+```{r}
+fit
+```
+
+```{r}
+id <- strata(training_yes, stratanames = "yesno", size = c(50, 100), method = "srswr")
+training_yes_balanced <- training_yes |> 
+  slice(id$ID_unit)
+table(training_yes_balanced$yesno)
+```
+
+```{r}
+fit <- training_yes_balanced |> 
+  train(yesno ~ .,
+        data = _,
+        method = "rpart",
+        trControl = trainControl(method = "cv"),
+        control = rpart.control(minsplit = 5))
+
+confusionMatrix(data = predict(fit, testing_yes),
+                ref = factor(testing_yes$yesno))
+```
+
+### **Option 3: Build A Larger Tree and use Predicted Probabilities**
+
+By enhancing complexity, fewer data are needed to split a node. In this context, I utilize AUC (Area Under the ROC Curve) as the tuning metric. It's crucial to specify the two-class summary function. It's worth noting that the tree algorithm prioritizes improving accuracy on the data rather than AUC. Additionally, I enable class probabilities as I intend to predict probabilities in subsequent stages.
+
+```{r}
+fit <- training_yes |> 
+  train(yesno ~ .,
+        data = _,
+        method = "rpart",
+        tuneLength = 10,
+        trControl = trainControl(method = "cv",
+        classProbs = TRUE,  ## necessary for predict with type="prob"
+        summaryFunction=twoClassSummary),  ## necessary for ROC
+        metric = "ROC",
+        control = rpart.control(minsplit = 3))
+```
+
+```{r}
+fit
+```
+
+```{r}
+rpart.plot(fit$finalModel, extra = 2)
+```
+
+```{r}
+confusionMatrix(data = predict(fit, testing_yes),
+                ref = factor(testing_yes$yesno))
+```
+
+Accuracy is close or below to the no-information rate
+
+Now we can create a biased classifier
+
+We can design a classifier to identify more yes, even if it means misclassifying some no. Essentially, this involves increasing the cost associated with misclassifying a yes as a no. Typically, predictions in each node are based on the majority class from the test data in that node, often exceeding a probability threshold of 50% in binary classification problems. In this case, we lower this threshold to 1% or more. Consequently, if a new observation falls into a leaf node where 1% or more of the training data consists of yes, the observation will be classified as a yes. It's important to note that this approach is more effective with larger datasets, considering the current dataset's limited size.
+
+```{r}
+prob <- predict(fit, testing_yes, type = "prob")
+tail(prob)
+```
+
+```{r}
+pred <- as.factor(ifelse(prob[,"y"]>=0.01, "y", "n"))
+
+confusionMatrix(data = pred,
+                ref = as.factor(testing_yes$yesno))
+```
+
+Again the accuracy goes down and is below the information rate
+
+PLOT THE ROC CURVE
+
+Given our binary classification task and a classifier that predicts the likelihood of an observation being a yes, we can employ a Receiver Operating Characteristic (ROC) curve. This curve encompasses various cutoff thresholds for the predicted probabilities, which are then connected with a line. The area under this curve provides a single metric indicating the classifier's performance (the closer to one, the better).
+
+```{r}
+library("pROC")
+r <- roc(testing_yes$yesno == "y", prob[,"y"])
+```
+
+```{r}
+r
+```
+
+```{r}
+ggroc(r) + geom_abline(intercept = 1, slope = 1, color = "darkgrey")
+```
+
+### **Option 4: Use a Cost-Sensitive Classifier**
+
+The implementation of CART in `rpart` can use a cost matrix for making splitting decisions (as parameter `loss`). The matrix has the form
+
+TP FP FN TN
+
+TP and TN have to be 0. We make FN very expensive (100).
+
+```{r}
+cost <- matrix(c(
+  0,   1,
+  100, 0
+), byrow = TRUE, nrow = 2)
+cost
+```
+
+```{r}
+fit <- training_yes |> 
+  train(yesno ~ .,
+        data = _,
+        method = "rpart",
+        parms = list(loss = cost),
+        trControl = trainControl(method = "cv"))
+```
+
+```{r}
+fit
+```
+
+```{r}
+rpart.plot(fit$finalModel, extra = 2)
+```
+
+Everything is predicted as yes
+
+```{r}
+confusionMatrix(data = predict(fit, testing_yes),
+                ref = factor(testing_yes$yesno))
+```
+
+Most of the classification algorithm do not have ability to consider misclassification cost.
+
+# **Classification: Alternative Techniques**
+
+## **Install packages**
+
+```{r}
+if(!require(pacman))
+  install.packages("pacman")
+
+pacman::p_load(
+  C50,                # C5.0 Decision Trees and Rule-Based Models
+  caret,              # Classification and Regression Training
+  e1071,              # Misc Functions of the Department of Statistics (e1071), TU Wien
+  keras,              # R Interface to 'Keras'
+  kernlab,            # Kernel-Based Machine Learning Lab
+  lattice,            # Trellis Graphics for R
+  MASS,               # Support Functions and Datasets for Venables and Ripley's MASS
+  mlbench,            # Machine Learning Benchmark Problems
+  nnet,               # Feedforward Neural Networks and Multinomial Log-Linear Models
+  palmerpenguins,     # Palmer Archipelago (Antarctica) Penguin Data
+  party,              # A Laboratory for Recursive Partytioning
+  partykit,           # A Toolkit for Recursive Partytioning
+  randomForest,       # Breiman and Cutler's Random Forests for Classification and Regression
+  rpart,              # Recursive partitioning models
+  RWeka,              # R/Weka Interface
+  scales,             # Scale Functions for Visualization
+  tidymodels,         # Tidy machine learning framework
+  tidyverse,          # Tidy data wrangling and visualization
+  xgboost             # Extreme Gradient Boosting
+)
+```
+
+```{r}
+options(digits=3)
+```
+
+## Introduction
+
+Here we will use some classification algorithms.
+
+## **Training and Test Data**
+
+Here we will use email spam dataset
+
+```{r}
+spam <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-08-15/spam.csv')
+spam <- as.data.frame(spam)
+spam |> glimpse()
+```
+
+```{r}
+set.seed(123)  # for reproducibility
+inTrain <- createDataPartition(y = spam$yesno, p = .8)[[1]]
+spam_train <- dplyr::slice(spam, inTrain)
+spam_test <- dplyr::slice(spam, -inTrain)
+```
+
+## **Fitting Different Classification Models to the Training Data**
+
+Create a fixed sampling scheme (10-folds) so we can compare the fitted models later.
+
+```{r}
+train_index <- createFolds(spam_train$yesno, k = 10)
+```
+
+The fixed folds are used in `train()` with the argument `trControl = trainControl(method = "cv", indexOut = train_index))`. If you don\'t need fixed folds, then remove `indexOut = train_index` 
+
+### **Conditional Inference Tree (Decision Tree)**
+
+```{r}
+ctreeFit <- spam_train |> train(yesno ~ .,
+  method = "ctree",
+  data = _,
+    tuneLength = 5,
+    trControl = trainControl(method = "cv", indexOut = train_index))
+ctreeFit
+```
+
+```{r}
+plot(ctreeFit$finalModel)
+```
+
+### **C 4.5 Decision Tree**
+
+```{r}
+C45Fit <- spam_train |> train(yesno ~ .,
+  method = "J48",
+  data = _,
+    tuneLength = 5,
+    trControl = trainControl(method = "cv", indexOut = train_index))
+C45Fit
+```
+
+```{r}
+C45Fit$finalModel
+```
+
+### **K-Nearest Neighbors**
+
+kNN uses Euclidean distance, so data should be standardized (scaled) first. Here legs are measured between 0 and 6 while all other variables are between 0 and 1. Scaling can be directly performed as preprocessing in `train` using the parameter `preProcess = "scale".`
+
+```{r}
+knnFit <- spam_train |> train(yesno ~ .,
+  method = "knn",
+  data = _,
+  preProcess = "scale",
+    tuneLength = 5,
+  tuneGrid=data.frame(k = 1:10),
+    trControl = trainControl(method = "cv", indexOut = train_index))
+knnFit
+```
+
+```{r}
+knnFit$finalModel
+```
+
+### **PART (Rule-based classifier)**
+
+```{r}
+rulesFit <- spam_train |> train(yesno ~ .,
+  method = "PART",
+  data = _,
+  tuneLength = 5,
+  trControl = trainControl(method = "cv", indexOut = train_index))
+rulesFit
+```
+
+```{r}
+rulesFit$finalModel
+```
+
+### **Linear Support Vector Machines**
+
+```{r}
+svmFit <- spam_train |> train(yesno ~.,
+  method = "svmLinear",
+  data = _,
+    tuneLength = 5,
+    trControl = trainControl(method = "cv", indexOut = train_index))
+svmFit
+```
+
+```{r}
+svmFit$finalModel
+```
+
+### **Random Forest**
+
+```{r}
+randomForestFit <- spam_train |> train(yesno ~ .,
+  method = "rf",
+  data = _,
+    tuneLength = 5,
+    trControl = trainControl(method = "cv", indexOut = train_index))
+randomForestFit
+```
+
+```{r}
+randomForestFit$finalModel
+```
+
+### **Gradient Boosted Decision Trees (xgboost)**
+
+```{r}
+xgboostFit <- spam_train |> train(yesno ~ .,
+  method = "xgbTree",
+  data = _,
+  tuneLength = 5,
+  trControl = trainControl(method = "cv", indexOut = train_index),
+  tuneGrid = expand.grid(
+    nrounds = 20,
+    max_depth = 3,
+    colsample_bytree = .6,
+    eta = 0.1,
+    gamma=0,
+    min_child_weight = 1,
+    subsample = .5
+  ))
+xgboostFit
+```
+
+```{r}
+xgboostFit$finalModel
+```
+
+### **Artificial Neural Network**
+
+```{r}
+nnetFit <- spam_train |> train(yesno ~ .,
+  method = "nnet",
+  data = _,
+    tuneLength = 5,
+    trControl = trainControl(method = "cv", indexOut = train_index),
+  trace = FALSE)
+nnetFit
+```
+
+```{r}
+nnetFit$finalModel
+```
+
+## Comparing Models
+
+Collect the performance metrics from the models trained on the same data.
+
+```{r}
+resamps <- resamples(list(
+  ctree = ctreeFit,
+  C45 = C45Fit,
+  SVM = svmFit,
+  KNN = knnFit,
+  rules = rulesFit,
+  randomForest = randomForestFit,
+  xgboost = xgboostFit,
+  NeuralNet = nnetFit
+    ))
+resamps
+```
+
+Calculate Summary Statistics
+
+```{r}
+summary(resamps)
+```
+
+```{r}
+library(lattice)
+bwplot(resamps, layout = c(3, 1))
+```
+
+Conduct an analysis to compare differences between models. This involves computing and testing all possible pairwise differences for each metric to determine if the differences are statistically significant. The default method includes Bonferroni correction for handling multiple comparisons. The resulting differences are displayed in the upper triangle, while corresponding p-values are presented in the lower triangle.
+
+```{r}
+difs <- diff(resamps)
+difs
+```
+
+```{r}
+summary(difs)
+```
+
+## **Applying the Chosen Model to the Test Data**
+
+Most models do similarly well on the data. We choose here the random forest model.
+
+```{r}
+pr <- predict(randomForestFit, spam_train)
+pr
+```
+
+Confusion Matrix
+
+```{r}
+#confusionMatrix(p,reference = spam_test$yesno)
+```
+
+## **Comparing Decision Boundaries of Popular Classification Techniques**
+
+Classifiers establish boundaries to distinguish between classes. Various classifiers generate distinct shapes of these boundaries; for instance, some are strictly linear. Consequently, specific classifiers might excel with particular datasets. On this page, we visualize the decision boundaries created by several widely used classification methods.
+
+In the displayed plot, the decision boundary is represented by black lines, and the intensity of color indicates the classification confidence. This is achieved by evaluating the classifier at evenly spaced grid points. It's important to note that using a low resolution (to expedite evaluation) can create an illusion of small steps in the decision boundary, even if it is a straight line.
+
+```{r}
+library(scales)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+
+decisionplot <- function(model, data, class_var, 
+  predict_type = c("class", "prob"), resolution = 3 * 72) {
+  # resolution is set to 72 dpi if the image is rendered  3 inches wide. 
+  
+  y <- data |> pull(class_var)
+  x <- data |> dplyr::select(-all_of(class_var))
+  
+  # resubstitution accuracy
+  prediction <- predict(model, x, type = predict_type[1])
+  # LDA returns a list
+  if(is.list(prediction)) prediction <- prediction$class
+  prediction <- factor(prediction, levels = levels(y))
+  
+  cm <- confusionMatrix(data = prediction, 
+                        reference = y)
+  acc <- cm$overall["Accuracy"]
+  
+  # evaluate model on a grid
+  r <- sapply(x[, 1:2], range, na.rm = TRUE)
+  xs <- seq(r[1,1], r[2,1], length.out = resolution)
+  ys <- seq(r[1,2], r[2,2], length.out = resolution)
+  g <- cbind(rep(xs, each = resolution), rep(ys, time = resolution))
+  colnames(g) <- colnames(r)
+  g <- as_tibble(g)
+  
+  ### guess how to get class labels from predict
+  ### (unfortunately not very consistent between models)
+  cl <- predict(model, g, type = predict_type[1])
+  
+  # LDA returns a list
+  prob <- NULL
+  if(is.list(cl)) { 
+    prob <- cl$posterior
+    cl <- cl$class
+  } else
+    if(!is.na(predict_type[2]))
+      try(prob <- predict(model, g, type = predict_type[2]))
+  
+  # we visualize the difference in probability/score between the 
+  # winning class and the second best class.
+  # don't use probability if predict for the classifier does not support it.
+  max_prob <- 1
+  if(!is.null(prob))
+    try({
+      max_prob <- t(apply(prob, MARGIN = 1, sort, decreasing = TRUE))
+      max_prob <- max_prob[,1] - max_prob[,2]
+    }, silent = TRUE) 
+  
+  cl <- factor(cl, levels = levels(y))
+  
+  g <- g |> add_column(prediction = cl, probability = max_prob)
+  
+  ggplot(g, mapping = aes(
+    x = .data[[colnames(g)[1]]], y = .data[[colnames(g)[2]]])) +
+    geom_raster(mapping = aes(fill = prediction, alpha = probability)) +
+    geom_contour(mapping = aes(z = as.numeric(prediction)), 
+      bins = length(levels(cl)), linewidth = .5, color = "black") +
+    geom_point(data = data, mapping =  aes(
+      x = .data[[colnames(data)[1]]], 
+      y = .data[[colnames(data)[2]]],
+      shape = .data[[class_var]]), alpha = .7) + 
+    scale_alpha_continuous(range = c(0,1), limits = c(0,1), guide = "none") +  
+    labs(subtitle = paste("Training accuracy:", round(acc, 2))) +
+     theme_minimal(base_size = 14)
+}
+```
+
+## Here we are using penguins dataset
+
+```{r}
+set.seed(1000)
+data("penguins")
+penguins <- as_tibble(penguins) |>
+  drop_na()
+
+### Three classes 
+### (note: MASS also has a select function which hides dplyr's select)
+x <- penguins |> dplyr::select(bill_length_mm, bill_depth_mm, species)
+x
+```
+
+```{r}
+ggplot(x, aes(x = bill_length_mm, y = bill_depth_mm, fill = species)) +  
+  stat_density_2d(geom = "polygon", aes(alpha = after_stat(level))) +
+  geom_point() +
+  theme_minimal(base_size = 14) +
+  labs(x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       fill = "Species",
+       alpha = "Density")
+```
+
+## K-Nearest Neighbors Classifier
+
+```{r}
+model <- x |> caret::knn3(species ~ ., data = _, k = 1)
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "kNN (1 neighbor)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> caret::knn3(species ~ ., data = _, k = 3)
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "kNN (3 neighbor)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> caret::knn3(species ~ ., data = _, k = 9)
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "kNN (9 neighbor)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+By increasing the value of k, the decision boundary becomes more gradual. When k is low, there are white areas around points where penguins from different classes overlap. In these regions, the algorithm randomly selects a class during prediction, leading to a wavering decision boundary. Predictions in these areas lack stability, meaning that requesting a class multiple times might yield different outcomes each time.
+
+## Naive Bayes Classifier
+
+```{r}
+model <- x |> e1071::naiveBayes(species ~ ., data = _)
+decisionplot(model, x, class_var = "species", 
+             predict_type = c("class", "raw")) + 
+  labs(title = "Naive Bayes",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction") 
+```
+
+## Linear Discriminant Analysis
+
+```{r}
+model <- x |> MASS::lda(species ~ ., data = _)
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "LDA",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+#### Multinomial Logistic Regression (implemented in nnet)
+
+```{r}
+model <- x |> nnet::multinom(species ~., data = _)
+```
+
+```{r}
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "Multinomial Logistic Regression",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+## Decision Trees
+
+```{r}
+model <- x |> rpart::rpart(species ~ ., data = _)
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "CART",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> rpart::rpart(species ~ ., data = _,
+  control = rpart.control(cp = 0.001, minsplit = 1))
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "CART (overfitting)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> C50::C5.0(species ~ ., data = _)
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "C5.0",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> randomForest::randomForest(species ~ ., data = _)
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "Random Forest",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+## SVM
+
+```{r}
+model <- x |> e1071::svm(species ~ ., data = _, kernel = "linear")
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "SVM (linear kernel)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> e1071::svm(species ~ ., data = _, kernel = "radial")
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "SVM (radial kernel)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> e1071::svm(species ~ ., data = _, kernel = "polynomial")
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "SVM (polynomial kernel)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> e1071::svm(species ~ ., data = _, kernel = "sigmoid")
+decisionplot(model, x, class_var = "species") + 
+  labs(title = "SVM (sigmoid kernel)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+#### Single Layer Feed-forward Neural Networks
+
+```{r}
+model <-x |> nnet::nnet(species ~ ., data = _, size = 1, trace = FALSE)
+decisionplot(model, x, class_var  = "species", 
+  predict_type = c("class", "raw")) + 
+  labs(title = "NN (1 neuron)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <-x |> nnet::nnet(species ~ ., data = _, size = 2, trace = FALSE)
+decisionplot(model, x, class_var  = "species", 
+  predict_type = c("class", "raw")) + 
+  labs(title = "NN (2 neurons)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <-x |> nnet::nnet(species ~ ., data = _, size = 4, trace = FALSE)
+decisionplot(model, x, class_var  = "species", 
+  predict_type = c("class", "raw")) + 
+  labs(title = "NN (4 neurons)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+```{r}
+model <-x |> nnet::nnet(species ~ ., data = _, size = 10, trace = FALSE)
+decisionplot(model, x, class_var  = "species", 
+  predict_type = c("class", "raw")) + 
+  labs(title = "NN (10 neurons)",
+       x = "Bill length (mm)",
+       y = "Bill depth (mm)",
+       shape = "Species",
+       fill = "Prediction")
+```
+
+## CIRCLE DATASET
+
+```{r}
+set.seed(1000)
+
+x <- mlbench::mlbench.circle(500)
+###x <- mlbench::mlbench.cassini(500)
+###x <- mlbench::mlbench.spirals(500, sd = .1)
+###x <- mlbench::mlbench.smiley(500)
+x <- cbind(as.data.frame(x$x), factor(x$classes))
+colnames(x) <- c("x", "y", "class")
+x <- as_tibble(x)
+x
+```
+
+```{r}
+ggplot(x, aes(x = x, y = y, color = class)) + 
+  geom_point() +
+  theme_minimal(base_size = 14)
+```
+
+## K-Nearest Classifier
+
+```{r}
+model <- x |> caret::knn3(class ~ ., data = _, k = 1)
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "kNN (1 neighbor)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> caret::knn3(class ~ ., data = _, k = 10)
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "kNN (10 neighbor)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+## Naive Bayes Classifier
+
+```{r}
+model <- x |> e1071::naiveBayes(class ~ ., data = _)
+decisionplot(model, x, class_var = "class", 
+  predict_type = c("class", "raw")) + 
+  labs(title = "naive Bayes",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+## Linear Discriminant Analysis
+
+```{r}
+model <- x |> MASS::lda(class ~ ., data = _)
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "LDA",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+#### Logistic Regression (implemented in nnet)
+
+```{r}
+model <- x |> nnet::multinom(class ~., data = _)
+```
+
+```{r}
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "Multinomial Logistic Regression",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+## Decision Trees
+
+```{r}
+model <- x |> rpart::rpart(class ~ ., data = _)
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "CART",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> rpart::rpart(class ~ ., data = _,
+  control = rpart.control(cp = 0.001, minsplit = 1))
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "CART (overfitting)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> C50::C5.0(class ~ ., data = _)
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "C5.0",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+library(randomForest)
+model <- x |> randomForest(class ~ ., data = _)
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "Random Forest",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+## SVM
+
+Linear SVM does not work on this data
+
+```{r}
+model <- x |> e1071::svm(class ~ ., data = _, kernel = "linear")
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "SVM (linear kernel)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> e1071::svm(class ~ ., data = _, kernel = "radial")
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "SVM (radial kernel)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> e1071::svm(class ~ ., data = _, kernel = "polynomial")
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "SVM (polynomial kernel)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+model <- x |> e1071::svm(class ~ ., data = _, kernel = "sigmoid")
+decisionplot(model, x, class_var = "class") + 
+  labs(title = "SVM (sigmoid kernel)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+## Single Layer Feed Forward Neural Network
+
+```{r}
+model <-x |> nnet::nnet(class ~ ., data = _, size = 1, trace = FALSE)
+decisionplot(model, x, class_var = "class", 
+  predict_type = c("class")) + 
+  labs(title = "NN (1 neuron)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+model <-x |> nnet::nnet(class ~ ., data = _, size = 2, trace = FALSE)
+decisionplot(model, x, class_var = "class", 
+  predict_type = c("class")) + 
+  labs(title = "NN (2 neurons)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+model <-x |> nnet::nnet(class ~ ., data = _, size = 4, trace = FALSE)
+decisionplot(model, x, class_var = "class", 
+  predict_type = c("class")) + 
+  labs(title = "NN (4 neurons)",
+       shape = "Class",
+       fill = "Prediction")
+```
+
+```{r}
+model <-x |> nnet::nnet(class ~ ., data = _, size = 10, trace = FALSE)
+decisionplot(model, x, class_var = "class", 
+  predict_type = c("class")) + 
+  labs(title = "NN (10 neurons)",
+       shape = "Class",
+       fill = "Prediction")
+```
