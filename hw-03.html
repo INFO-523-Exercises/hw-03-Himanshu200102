@@ -230,6 +230,7 @@ node), split, n, loss, yval, (yprob)
 <p><img src="hw-03_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
+<p>Decision Tree is created, as we can see it is predicting if the email is spam or not based on the frequency of words.</p>
 </section>
 <section id="create-a-full-tree" class="level3">
 <h3 class="anchored" data-anchor-id="create-a-full-tree"><strong>Create a Full Tree</strong></h3>
@@ -1520,7 +1521,7 @@ n000      0.000</code></pre>
 Levels: n y</code></pre>
 </div>
 </div>
-<p>Caret's&nbsp;<code>confusionMatrix()</code>&nbsp;function calculates accuracy, confidence intervals, kappa and many more evaluation metrics. You need to use separate test data to create a confusion matrix based on the generalization error.</p>
+<p>Caret’s&nbsp;<code>confusionMatrix()</code>&nbsp;function calculates accuracy, confidence intervals, kappa and many more evaluation metrics. You need to use separate test data to create a confusion matrix based on the generalization error.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb65"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a><span class="fu">confusionMatrix</span>(<span class="at">data =</span> pred, </span>
 <span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>                <span class="at">ref =</span> spam_test <span class="sc">|&gt;</span> <span class="fu">pull</span>(yesno))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1713,13 +1714,13 @@ kNearestNeighbors 0.5555                  </code></pre>
 <pre><code>[1] "bang"    "dollar"  "money"   "crl.tot" "n000"   </code></pre>
 </div>
 </div>
-<p>We will use the best figures to build the model</p>
+<p><strong>We will use the best figures to build the model</strong></p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb83"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a>f <span class="ot">&lt;-</span> <span class="fu">as.simple.formula</span>(subset, <span class="st">"yesno"</span>)</span>
 <span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a>f</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>yesno ~ bang + dollar + money + crl.tot + n000
-&lt;environment: 0x0000022f54be7cc8&gt;</code></pre>
+&lt;environment: 0x000001c814d0ee58&gt;</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -1819,6 +1820,7 @@ kNearestNeighbors 0.5555                  </code></pre>
 # ℹ 3,672 more rows</code></pre>
 </div>
 </div>
+<p>This decision tree is dividing on basis of if the yesno attribute contains n then it will go to yes part</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb96"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb96-1"><a href="#cb96-1" aria-hidden="true" tabindex="-1"></a>spam_money <span class="ot">&lt;-</span> spam_train_dummy <span class="sc">|&gt;</span> </span>
 <span id="cb96-2"><a href="#cb96-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rpart</span>(money <span class="sc">~</span> ., </span>
@@ -1896,6 +1898,7 @@ dbl (6): crl.tot, dollar, bang, money, n000, make
 <span id="cb103-3"><a href="#cb103-3" aria-hidden="true" tabindex="-1"></a>                       <span class="at">levels =</span> <span class="fu">c</span>(<span class="cn">FALSE</span>, <span class="cn">TRUE</span>),</span>
 <span id="cb103-4"><a href="#cb103-4" aria-hidden="true" tabindex="-1"></a>                       <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"yes"</span>, <span class="st">"no yes"</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+<p>Following graph gives count of yes and no in yesno attribute</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb104"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(spam_yes)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -2472,7 +2475,7 @@ $ yesno   &lt;chr&gt; "y", "y", "y", "y", "y", "y", "y", "y", "y", "y", "y", "y"
 <div class="cell">
 <div class="sourceCode cell-code" id="cb157"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb157-1"><a href="#cb157-1" aria-hidden="true" tabindex="-1"></a>train_index <span class="ot">&lt;-</span> <span class="fu">createFolds</span>(spam_train<span class="sc">$</span>yesno, <span class="at">k =</span> <span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>The fixed folds are used in&nbsp;<code>train()</code>&nbsp;with the argument&nbsp;<code>trControl = trainControl(method = "cv", indexOut = train_index))</code>. If you don't need fixed folds, then remove&nbsp;<code>indexOut = train_index</code>&nbsp;</p>
+<p>The fixed folds are used in&nbsp;<code>train()</code>&nbsp;with the argument&nbsp;<code>trControl = trainControl(method = "cv", indexOut = train_index))</code>. If you don’t need fixed folds, then remove&nbsp;<code>indexOut = train_index</code>&nbsp;</p>
 <section id="conditional-inference-tree-decision-tree" class="level3">
 <h3 class="anchored" data-anchor-id="conditional-inference-tree-decision-tree"><strong>Conditional Inference Tree (Decision Tree)</strong></h3>
 <div class="cell">
@@ -2514,6 +2517,7 @@ The final value used for the model was mincriterion = 0.01.</code></pre>
 </section>
 <section id="c-4.5-decision-tree" class="level3">
 <h3 class="anchored" data-anchor-id="c-4.5-decision-tree"><strong>C 4.5 Decision Tree</strong></h3>
+<p>The “C4.5” decision tree algorithm, also known as C5.0, is a widely used classification algorithm in machine learning. It was developed by Ross Quinlan and is an extension of the ID3 (Iterative Dichotomiser 3) algorithm. C4.5 is used for both classification and regression tasks.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb161"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb161-1"><a href="#cb161-1" aria-hidden="true" tabindex="-1"></a>C45Fit <span class="ot">&lt;-</span> spam_train <span class="sc">|&gt;</span> <span class="fu">train</span>(yesno <span class="sc">~</span> .,</span>
 <span id="cb161-2"><a href="#cb161-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"J48"</span>,</span>
@@ -2746,6 +2750,7 @@ Training set outcome distribution:
 </section>
 <section id="part-rule-based-classifier" class="level3">
 <h3 class="anchored" data-anchor-id="part-rule-based-classifier"><strong>PART (Rule-based classifier)</strong></h3>
+<p>The PART (Partial C4.5) algorithm is a rule-based classification method that is an extension of the C4.5 decision tree algorithm. Unlike traditional decision trees, which tend to be deep and complex, PART generates a set of rules that describe the data patterns in a more interpretable manner.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb169"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb169-1"><a href="#cb169-1" aria-hidden="true" tabindex="-1"></a>rulesFit <span class="ot">&lt;-</span> spam_train <span class="sc">|&gt;</span> <span class="fu">train</span>(yesno <span class="sc">~</span> .,</span>
 <span id="cb169-2"><a href="#cb169-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"PART"</span>,</span>
@@ -2849,6 +2854,7 @@ Number of Rules  :  15</code></pre>
 </section>
 <section id="linear-support-vector-machines" class="level3">
 <h3 class="anchored" data-anchor-id="linear-support-vector-machines"><strong>Linear Support Vector Machines</strong></h3>
+<p>Linear Support Vector Machines (SVM) are a type of supervised machine learning algorithm used for classification and regression tasks. In the context of classification, linear SVM aims to find the optimal hyperplane that best separates different classes in the feature space. This hyperplane is the one that maximizes the margin between the classes, making it a robust and effective classifier, especially in high-dimensional spaces.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb173"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb173-1"><a href="#cb173-1" aria-hidden="true" tabindex="-1"></a>svmFit <span class="ot">&lt;-</span> spam_train <span class="sc">|&gt;</span> <span class="fu">train</span>(yesno <span class="sc">~</span>.,</span>
 <span id="cb173-2"><a href="#cb173-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"svmLinear"</span>,</span>
@@ -2893,6 +2899,7 @@ Training error : 0.156437 </code></pre>
 </section>
 <section id="random-forest" class="level3">
 <h3 class="anchored" data-anchor-id="random-forest"><strong>Random Forest</strong></h3>
+<p>Random Forest is an ensemble learning method used for both classification and regression tasks. It operates by constructing a multitude of decision trees during training and outputs the class that is the mode of the classes (classification) or mean prediction (regression) of the individual trees.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb177"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb177-1"><a href="#cb177-1" aria-hidden="true" tabindex="-1"></a>randomForestFit <span class="ot">&lt;-</span> spam_train <span class="sc">|&gt;</span> <span class="fu">train</span>(yesno <span class="sc">~</span> .,</span>
 <span id="cb177-2"><a href="#cb177-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"rf"</span>,</span>
@@ -2943,6 +2950,7 @@ y  279 1172      0.1923</code></pre>
 </section>
 <section id="gradient-boosted-decision-trees-xgboost" class="level3">
 <h3 class="anchored" data-anchor-id="gradient-boosted-decision-trees-xgboost"><strong>Gradient Boosted Decision Trees (xgboost)</strong></h3>
+<p>XGBoost, short for eXtreme Gradient Boosting, is an optimized and scalable implementation of gradient boosting machines. It’s a machine learning algorithm that belongs to the family of ensemble learning methods. Specifically, XGBoost is used for both classification and regression tasks, and it is known for its speed and performance.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb181"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb181-1"><a href="#cb181-1" aria-hidden="true" tabindex="-1"></a>xgboostFit <span class="ot">&lt;-</span> spam_train <span class="sc">|&gt;</span> <span class="fu">train</span>(yesno <span class="sc">~</span> .,</span>
 <span id="cb181-2"><a href="#cb181-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"xgbTree"</span>,</span>
@@ -3013,6 +3021,7 @@ param :
 </section>
 <section id="artificial-neural-network" class="level3">
 <h3 class="anchored" data-anchor-id="artificial-neural-network"><strong>Artificial Neural Network</strong></h3>
+<p>Artificial Neural Networks (ANNs) are computational models inspired by the way biological neural networks in the human brain work. ANNs are used in machine learning and artificial intelligence for various tasks, including classification, regression, pattern recognition, and decision making.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb185"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb185-1"><a href="#cb185-1" aria-hidden="true" tabindex="-1"></a>nnetFit <span class="ot">&lt;-</span> spam_train <span class="sc">|&gt;</span> <span class="fu">train</span>(yesno <span class="sc">~</span> .,</span>
 <span id="cb185-2"><a href="#cb185-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"nnet"</span>,</span>
@@ -3449,6 +3458,7 @@ Levels: n y</code></pre>
 </section>
 <section id="k-nearest-neighbors-classifier" class="level2">
 <h2 class="anchored" data-anchor-id="k-nearest-neighbors-classifier">K-Nearest Neighbors Classifier</h2>
+<p>K-Nearest Neighbors (KNN) is a simple, instance-based, and non-parametric machine learning algorithm used for both classification and regression tasks. In classification, KNN predicts the class of a data point based on the classes of its nearest neighbors, where �k is a user-defined parameter specifying the number of neighbors to consider.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb205"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb205-1"><a href="#cb205-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> caret<span class="sc">::</span><span class="fu">knn3</span>(species <span class="sc">~</span> ., <span class="at">data =</span> _, <span class="at">k =</span> <span class="dv">1</span>)</span>
 <span id="cb205-2"><a href="#cb205-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"species"</span>) <span class="sc">+</span> </span>
@@ -3489,6 +3499,7 @@ Levels: n y</code></pre>
 </section>
 <section id="naive-bayes-classifier" class="level2">
 <h2 class="anchored" data-anchor-id="naive-bayes-classifier">Naive Bayes Classifier</h2>
+<p>Naive Bayes is a probabilistic machine learning algorithm based on Bayes’ theorem. It is a simple and efficient classification technique that is particularly well-suited for text classification and spam filtering. Despite its simplicity, Naive Bayes often performs surprisingly well in practice, especially on tasks with high-dimensional feature spaces.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb208"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb208-1"><a href="#cb208-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> e1071<span class="sc">::</span><span class="fu">naiveBayes</span>(species <span class="sc">~</span> ., <span class="at">data =</span> _)</span>
 <span id="cb208-2"><a href="#cb208-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"species"</span>, </span>
@@ -3505,6 +3516,7 @@ Levels: n y</code></pre>
 </section>
 <section id="linear-discriminant-analysis" class="level2">
 <h2 class="anchored" data-anchor-id="linear-discriminant-analysis">Linear Discriminant Analysis</h2>
+<p>Linear Discriminant Analysis (LDA) is a supervised machine learning algorithm used for classification and dimensionality reduction. It is particularly useful when dealing with multi-class classification problems and is based on statistical principles. LDA works by finding linear combinations of features that best separate different classes in the data.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb209"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb209-1"><a href="#cb209-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> MASS<span class="sc">::</span><span class="fu">lda</span>(species <span class="sc">~</span> ., <span class="at">data =</span> _)</span>
 <span id="cb209-2"><a href="#cb209-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"species"</span>) <span class="sc">+</span> </span>
@@ -3519,6 +3531,7 @@ Levels: n y</code></pre>
 </div>
 <section id="multinomial-logistic-regression-implemented-in-nnet" class="level4">
 <h4 class="anchored" data-anchor-id="multinomial-logistic-regression-implemented-in-nnet">Multinomial Logistic Regression (implemented in nnet)</h4>
+<p>Multinomial Logistic Regression, also known as Softmax Regression, is an extension of binary logistic regression to handle multi-class classification problems. In this method, the outcome variable can take more than two classes, and the algorithm predicts the probability of each class. The class with the highest probability is then assigned as the predicted class for a given input.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb210"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb210-1"><a href="#cb210-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> nnet<span class="sc">::</span><span class="fu">multinom</span>(species <span class="sc">~</span>., <span class="at">data =</span> _)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -3549,6 +3562,7 @@ converged</code></pre>
 </section>
 <section id="decision-trees-1" class="level2">
 <h2 class="anchored" data-anchor-id="decision-trees-1">Decision Trees</h2>
+<p>Decision Trees are versatile supervised machine learning algorithms used for both classification and regression tasks. They work by recursively partitioning the data into subsets based on the values of input features. Each partition is based on a decision rule learned from the training data, enabling the algorithm to make predictions for unseen or future data points.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb213"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb213-1"><a href="#cb213-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> rpart<span class="sc">::</span><span class="fu">rpart</span>(species <span class="sc">~</span> ., <span class="at">data =</span> _)</span>
 <span id="cb213-2"><a href="#cb213-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"species"</span>) <span class="sc">+</span> </span>
@@ -3601,6 +3615,7 @@ converged</code></pre>
 </section>
 <section id="svm" class="level2">
 <h2 class="anchored" data-anchor-id="svm">SVM</h2>
+<p>Support Vector Machines (SVM) is a powerful supervised machine learning algorithm used for both classification and regression tasks. SVM is particularly effective in high-dimensional spaces and is well-suited for tasks where the data has clear margins of separation between classes.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb217"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb217-1"><a href="#cb217-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> e1071<span class="sc">::</span><span class="fu">svm</span>(species <span class="sc">~</span> ., <span class="at">data =</span> _, <span class="at">kernel =</span> <span class="st">"linear"</span>)</span>
 <span id="cb217-2"><a href="#cb217-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"species"</span>) <span class="sc">+</span> </span>
@@ -3651,6 +3666,7 @@ converged</code></pre>
 </div>
 <section id="single-layer-feed-forward-neural-networks" class="level4">
 <h4 class="anchored" data-anchor-id="single-layer-feed-forward-neural-networks">Single Layer Feed-forward Neural Networks</h4>
+<p>A Single Layer Feed-forward Neural Network, often referred to as a Perceptron, is the simplest form of artificial neural networks. It consists of only one layer, the output layer, with no hidden layers. This basic neural network model can be used for binary classification tasks.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb221"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb221-1"><a href="#cb221-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span>x <span class="sc">|&gt;</span> nnet<span class="sc">::</span><span class="fu">nnet</span>(species <span class="sc">~</span> ., <span class="at">data =</span> _, <span class="at">size =</span> <span class="dv">1</span>, <span class="at">trace =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb221-2"><a href="#cb221-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var  =</span> <span class="st">"species"</span>, </span>
@@ -3756,6 +3772,7 @@ Caused by error in `if (zero_range(range)) ...`:
 </section>
 <section id="k-nearest-classifier" class="level2">
 <h2 class="anchored" data-anchor-id="k-nearest-classifier">K-Nearest Classifier</h2>
+<p>K-Nearest Neighbors (KNN) is a simple, instance-based, and non-parametric machine learning algorithm used for both classification and regression tasks. In classification, KNN predicts the class of a data point based on the classes of its nearest neighbors, where �k is a user-defined parameter specifying the number of neighbors to consider.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb230"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb230-1"><a href="#cb230-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> caret<span class="sc">::</span><span class="fu">knn3</span>(class <span class="sc">~</span> ., <span class="at">data =</span> _, <span class="at">k =</span> <span class="dv">1</span>)</span>
 <span id="cb230-2"><a href="#cb230-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"class"</span>) <span class="sc">+</span> </span>
@@ -3779,6 +3796,7 @@ Caused by error in `if (zero_range(range)) ...`:
 </section>
 <section id="naive-bayes-classifier-1" class="level2">
 <h2 class="anchored" data-anchor-id="naive-bayes-classifier-1">Naive Bayes Classifier</h2>
+<p>Naive Bayes is a probabilistic machine learning algorithm based on Bayes’ theorem. It is a simple and efficient classification technique that is particularly well-suited for text classification and spam filtering. Despite its simplicity, Naive Bayes often performs surprisingly well in practice, especially on tasks with high-dimensional feature spaces.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb232"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb232-1"><a href="#cb232-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> e1071<span class="sc">::</span><span class="fu">naiveBayes</span>(class <span class="sc">~</span> ., <span class="at">data =</span> _)</span>
 <span id="cb232-2"><a href="#cb232-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"class"</span>, </span>
@@ -3793,6 +3811,7 @@ Caused by error in `if (zero_range(range)) ...`:
 </section>
 <section id="linear-discriminant-analysis-1" class="level2">
 <h2 class="anchored" data-anchor-id="linear-discriminant-analysis-1">Linear Discriminant Analysis</h2>
+<p>Linear Discriminant Analysis (LDA) is a supervised machine learning algorithm used for classification and dimensionality reduction. It is particularly useful when dealing with multi-class classification problems and is based on statistical principles. LDA works by finding linear combinations of features that best separate different classes in the data.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb233"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb233-1"><a href="#cb233-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> MASS<span class="sc">::</span><span class="fu">lda</span>(class <span class="sc">~</span> ., <span class="at">data =</span> _)</span>
 <span id="cb233-2"><a href="#cb233-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"class"</span>) <span class="sc">+</span> </span>
@@ -3805,6 +3824,8 @@ Caused by error in `if (zero_range(range)) ...`:
 </div>
 <section id="logistic-regression-implemented-in-nnet" class="level4">
 <h4 class="anchored" data-anchor-id="logistic-regression-implemented-in-nnet">Logistic Regression (implemented in nnet)</h4>
+<p>Logistic Regression is a statistical method used for binary classification tasks, where the outcome variable has two classes. In the context of machine learning, logistic regression is also widely used for multi-class classification problems, using techniques like one-vs-rest (OvR) or one-vs-one (OvO) approaches. The logistic regression model predicts the probability that an instance belongs to a particular class.</p>
+<p>When implemented in the <strong><code>nnet</code></strong> package in R (or similar packages in other languages), logistic regression is often extended to handle multi-class classification efficiently.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb234"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb234-1"><a href="#cb234-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> nnet<span class="sc">::</span><span class="fu">multinom</span>(class <span class="sc">~</span>., <span class="at">data =</span> _)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -3827,6 +3848,7 @@ converged</code></pre>
 </section>
 <section id="decision-trees-2" class="level2">
 <h2 class="anchored" data-anchor-id="decision-trees-2">Decision Trees</h2>
+<p>Decision Trees are versatile supervised machine learning algorithms used for both classification and regression tasks. They work by recursively partitioning the data into subsets based on the values of input features. Each partition is based on a decision rule learned from the training data, enabling the algorithm to make predictions for unseen or future data points.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb237"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb237-1"><a href="#cb237-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> rpart<span class="sc">::</span><span class="fu">rpart</span>(class <span class="sc">~</span> ., <span class="at">data =</span> _)</span>
 <span id="cb237-2"><a href="#cb237-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"class"</span>) <span class="sc">+</span> </span>
@@ -3872,6 +3894,7 @@ converged</code></pre>
 </section>
 <section id="svm-1" class="level2">
 <h2 class="anchored" data-anchor-id="svm-1">SVM</h2>
+<p>Support Vector Machines (SVM) is a powerful supervised machine learning algorithm used for both classification and regression tasks. SVM is particularly effective in high-dimensional spaces and is well-suited for tasks where the data has clear margins of separation between classes.</p>
 <p>Linear SVM does not work on this data</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb241"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb241-1"><a href="#cb241-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span> e1071<span class="sc">::</span><span class="fu">svm</span>(class <span class="sc">~</span> ., <span class="at">data =</span> _, <span class="at">kernel =</span> <span class="st">"linear"</span>)</span>
@@ -3921,6 +3944,7 @@ Caused by error in `if (zero_range(range)) ...`:
 </section>
 <section id="single-layer-feed-forward-neural-network" class="level2">
 <h2 class="anchored" data-anchor-id="single-layer-feed-forward-neural-network">Single Layer Feed Forward Neural Network</h2>
+<p>A Single Layer Feed-forward Neural Network, often referred to as a Perceptron, is the simplest form of artificial neural networks. It consists of only one layer, the output layer, with no hidden layers. This basic neural network model can be used for binary classification tasks.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb246"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb246-1"><a href="#cb246-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span>x <span class="sc">|&gt;</span> nnet<span class="sc">::</span><span class="fu">nnet</span>(class <span class="sc">~</span> ., <span class="at">data =</span> _, <span class="at">size =</span> <span class="dv">1</span>, <span class="at">trace =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb246-2"><a href="#cb246-2" aria-hidden="true" tabindex="-1"></a><span class="fu">decisionplot</span>(model, x, <span class="at">class_var =</span> <span class="st">"class"</span>, </span>

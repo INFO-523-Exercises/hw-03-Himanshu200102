@@ -64,6 +64,8 @@ library(rpart.plot)
 rpart.plot(tree_default, extra = 2)
 ```
 
+Decision Tree is created, as we can see it is predicting if the email is spam or not based on the frequency of words.
+
 ### **Create a Full Tree**
 
 To create a full tree, we set the complexity parameter cp to 0 (split even if it does not improve the tree) and we set the minimum number of observations in a node needed to split to the smallest value of 2 (see: `?rpart.control`).
@@ -247,7 +249,7 @@ pred <- predict(fit, newdata = spam_test)
 pred
 ```
 
-Caret\'s `confusionMatrix()` function calculates accuracy, confidence intervals, kappa and many more evaluation metrics. You need to use separate test data to create a confusion matrix based on the generalization error.
+Caret's `confusionMatrix()` function calculates accuracy, confidence intervals, kappa and many more evaluation metrics. You need to use separate test data to create a confusion matrix based on the generalization error.
 
 ```{r}
 confusionMatrix(data = pred, 
@@ -363,7 +365,7 @@ subset <- cutoff.k(weights |>
 subset
 ```
 
-We will use the best figures to build the model
+**We will use the best figures to build the model**
 
 ```{r}
 f <- as.simple.formula(subset, "yesno")
@@ -442,6 +444,8 @@ spam_train_dummy <- as_tibble(class2ind(spam_train$yesno)) |>
 spam_train_dummy
 ```
 
+This decision tree is dividing on basis of if the yesno attribute contains n then it will go to yes part
+
 ```{r}
 spam_money <- spam_train_dummy |> 
   rpart(money ~ ., 
@@ -492,6 +496,8 @@ spam_yes <- spam |>
                        levels = c(FALSE, TRUE),
                        labels = c("yes", "no yes")))
 ```
+
+Following graph gives count of yes and no in yesno attribute
 
 ```{r}
 summary(spam_yes)
@@ -761,7 +767,7 @@ Create a fixed sampling scheme (10-folds) so we can compare the fitted models la
 train_index <- createFolds(spam_train$yesno, k = 10)
 ```
 
-The fixed folds are used in `train()` with the argument `trControl = trainControl(method = "cv", indexOut = train_index))`. If you don\'t need fixed folds, then remove `indexOut = train_index` 
+The fixed folds are used in `train()` with the argument `trControl = trainControl(method = "cv", indexOut = train_index))`. If you don't need fixed folds, then remove `indexOut = train_index` 
 
 ### **Conditional Inference Tree (Decision Tree)**
 
@@ -779,6 +785,8 @@ plot(ctreeFit$finalModel)
 ```
 
 ### **C 4.5 Decision Tree**
+
+The "C4.5" decision tree algorithm, also known as C5.0, is a widely used classification algorithm in machine learning. It was developed by Ross Quinlan and is an extension of the ID3 (Iterative Dichotomiser 3) algorithm. C4.5 is used for both classification and regression tasks.
 
 ```{r}
 C45Fit <- spam_train |> train(yesno ~ .,
@@ -814,6 +822,8 @@ knnFit$finalModel
 
 ### **PART (Rule-based classifier)**
 
+The PART (Partial C4.5) algorithm is a rule-based classification method that is an extension of the C4.5 decision tree algorithm. Unlike traditional decision trees, which tend to be deep and complex, PART generates a set of rules that describe the data patterns in a more interpretable manner.
+
 ```{r}
 rulesFit <- spam_train |> train(yesno ~ .,
   method = "PART",
@@ -828,6 +838,8 @@ rulesFit$finalModel
 ```
 
 ### **Linear Support Vector Machines**
+
+Linear Support Vector Machines (SVM) are a type of supervised machine learning algorithm used for classification and regression tasks. In the context of classification, linear SVM aims to find the optimal hyperplane that best separates different classes in the feature space. This hyperplane is the one that maximizes the margin between the classes, making it a robust and effective classifier, especially in high-dimensional spaces.
 
 ```{r}
 svmFit <- spam_train |> train(yesno ~.,
@@ -844,6 +856,8 @@ svmFit$finalModel
 
 ### **Random Forest**
 
+Random Forest is an ensemble learning method used for both classification and regression tasks. It operates by constructing a multitude of decision trees during training and outputs the class that is the mode of the classes (classification) or mean prediction (regression) of the individual trees.
+
 ```{r}
 randomForestFit <- spam_train |> train(yesno ~ .,
   method = "rf",
@@ -858,6 +872,8 @@ randomForestFit$finalModel
 ```
 
 ### **Gradient Boosted Decision Trees (xgboost)**
+
+XGBoost, short for eXtreme Gradient Boosting, is an optimized and scalable implementation of gradient boosting machines. It's a machine learning algorithm that belongs to the family of ensemble learning methods. Specifically, XGBoost is used for both classification and regression tasks, and it is known for its speed and performance.
 
 ```{r}
 xgboostFit <- spam_train |> train(yesno ~ .,
@@ -882,6 +898,8 @@ xgboostFit$finalModel
 ```
 
 ### **Artificial Neural Network**
+
+Artificial Neural Networks (ANNs) are computational models inspired by the way biological neural networks in the human brain work. ANNs are used in machine learning and artificial intelligence for various tasks, including classification, regression, pattern recognition, and decision making.
 
 ```{r}
 nnetFit <- spam_train |> train(yesno ~ .,
@@ -1058,6 +1076,8 @@ ggplot(x, aes(x = bill_length_mm, y = bill_depth_mm, fill = species)) +
 
 ## K-Nearest Neighbors Classifier
 
+K-Nearest Neighbors (KNN) is a simple, instance-based, and non-parametric machine learning algorithm used for both classification and regression tasks. In classification, KNN predicts the class of a data point based on the classes of its nearest neighbors, where �k is a user-defined parameter specifying the number of neighbors to consider.
+
 ```{r}
 model <- x |> caret::knn3(species ~ ., data = _, k = 1)
 decisionplot(model, x, class_var = "species") + 
@@ -1092,6 +1112,8 @@ By increasing the value of k, the decision boundary becomes more gradual. When k
 
 ## Naive Bayes Classifier
 
+Naive Bayes is a probabilistic machine learning algorithm based on Bayes' theorem. It is a simple and efficient classification technique that is particularly well-suited for text classification and spam filtering. Despite its simplicity, Naive Bayes often performs surprisingly well in practice, especially on tasks with high-dimensional feature spaces.
+
 ```{r}
 model <- x |> e1071::naiveBayes(species ~ ., data = _)
 decisionplot(model, x, class_var = "species", 
@@ -1105,6 +1127,8 @@ decisionplot(model, x, class_var = "species",
 
 ## Linear Discriminant Analysis
 
+Linear Discriminant Analysis (LDA) is a supervised machine learning algorithm used for classification and dimensionality reduction. It is particularly useful when dealing with multi-class classification problems and is based on statistical principles. LDA works by finding linear combinations of features that best separate different classes in the data.
+
 ```{r}
 model <- x |> MASS::lda(species ~ ., data = _)
 decisionplot(model, x, class_var = "species") + 
@@ -1116,6 +1140,8 @@ decisionplot(model, x, class_var = "species") +
 ```
 
 #### Multinomial Logistic Regression (implemented in nnet)
+
+Multinomial Logistic Regression, also known as Softmax Regression, is an extension of binary logistic regression to handle multi-class classification problems. In this method, the outcome variable can take more than two classes, and the algorithm predicts the probability of each class. The class with the highest probability is then assigned as the predicted class for a given input.
 
 ```{r}
 model <- x |> nnet::multinom(species ~., data = _)
@@ -1131,6 +1157,8 @@ decisionplot(model, x, class_var = "species") +
 ```
 
 ## Decision Trees
+
+Decision Trees are versatile supervised machine learning algorithms used for both classification and regression tasks. They work by recursively partitioning the data into subsets based on the values of input features. Each partition is based on a decision rule learned from the training data, enabling the algorithm to make predictions for unseen or future data points.
 
 ```{r}
 model <- x |> rpart::rpart(species ~ ., data = _)
@@ -1175,6 +1203,8 @@ decisionplot(model, x, class_var = "species") +
 
 ## SVM
 
+Support Vector Machines (SVM) is a powerful supervised machine learning algorithm used for both classification and regression tasks. SVM is particularly effective in high-dimensional spaces and is well-suited for tasks where the data has clear margins of separation between classes.
+
 ```{r}
 model <- x |> e1071::svm(species ~ ., data = _, kernel = "linear")
 decisionplot(model, x, class_var = "species") + 
@@ -1216,6 +1246,8 @@ decisionplot(model, x, class_var = "species") +
 ```
 
 #### Single Layer Feed-forward Neural Networks
+
+A Single Layer Feed-forward Neural Network, often referred to as a Perceptron, is the simplest form of artificial neural networks. It consists of only one layer, the output layer, with no hidden layers. This basic neural network model can be used for binary classification tasks.
 
 ```{r}
 model <-x |> nnet::nnet(species ~ ., data = _, size = 1, trace = FALSE)
@@ -1284,6 +1316,8 @@ ggplot(x, aes(x = x, y = y, color = class)) +
 
 ## K-Nearest Classifier
 
+K-Nearest Neighbors (KNN) is a simple, instance-based, and non-parametric machine learning algorithm used for both classification and regression tasks. In classification, KNN predicts the class of a data point based on the classes of its nearest neighbors, where �k is a user-defined parameter specifying the number of neighbors to consider.
+
 ```{r}
 model <- x |> caret::knn3(class ~ ., data = _, k = 1)
 decisionplot(model, x, class_var = "class") + 
@@ -1302,6 +1336,8 @@ decisionplot(model, x, class_var = "class") +
 
 ## Naive Bayes Classifier
 
+Naive Bayes is a probabilistic machine learning algorithm based on Bayes' theorem. It is a simple and efficient classification technique that is particularly well-suited for text classification and spam filtering. Despite its simplicity, Naive Bayes often performs surprisingly well in practice, especially on tasks with high-dimensional feature spaces.
+
 ```{r}
 model <- x |> e1071::naiveBayes(class ~ ., data = _)
 decisionplot(model, x, class_var = "class", 
@@ -1313,6 +1349,8 @@ decisionplot(model, x, class_var = "class",
 
 ## Linear Discriminant Analysis
 
+Linear Discriminant Analysis (LDA) is a supervised machine learning algorithm used for classification and dimensionality reduction. It is particularly useful when dealing with multi-class classification problems and is based on statistical principles. LDA works by finding linear combinations of features that best separate different classes in the data.
+
 ```{r}
 model <- x |> MASS::lda(class ~ ., data = _)
 decisionplot(model, x, class_var = "class") + 
@@ -1322,6 +1360,10 @@ decisionplot(model, x, class_var = "class") +
 ```
 
 #### Logistic Regression (implemented in nnet)
+
+Logistic Regression is a statistical method used for binary classification tasks, where the outcome variable has two classes. In the context of machine learning, logistic regression is also widely used for multi-class classification problems, using techniques like one-vs-rest (OvR) or one-vs-one (OvO) approaches. The logistic regression model predicts the probability that an instance belongs to a particular class.
+
+When implemented in the **`nnet`** package in R (or similar packages in other languages), logistic regression is often extended to handle multi-class classification efficiently.
 
 ```{r}
 model <- x |> nnet::multinom(class ~., data = _)
@@ -1335,6 +1377,8 @@ decisionplot(model, x, class_var = "class") +
 ```
 
 ## Decision Trees
+
+Decision Trees are versatile supervised machine learning algorithms used for both classification and regression tasks. They work by recursively partitioning the data into subsets based on the values of input features. Each partition is based on a decision rule learned from the training data, enabling the algorithm to make predictions for unseen or future data points.
 
 ```{r}
 model <- x |> rpart::rpart(class ~ ., data = _)
@@ -1372,6 +1416,8 @@ decisionplot(model, x, class_var = "class") +
 
 ## SVM
 
+Support Vector Machines (SVM) is a powerful supervised machine learning algorithm used for both classification and regression tasks. SVM is particularly effective in high-dimensional spaces and is well-suited for tasks where the data has clear margins of separation between classes.
+
 Linear SVM does not work on this data
 
 ```{r}
@@ -1407,6 +1453,8 @@ decisionplot(model, x, class_var = "class") +
 ```
 
 ## Single Layer Feed Forward Neural Network
+
+A Single Layer Feed-forward Neural Network, often referred to as a Perceptron, is the simplest form of artificial neural networks. It consists of only one layer, the output layer, with no hidden layers. This basic neural network model can be used for binary classification tasks.
 
 ```{r}
 model <-x |> nnet::nnet(class ~ ., data = _, size = 1, trace = FALSE)
