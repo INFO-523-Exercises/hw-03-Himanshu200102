@@ -19,6 +19,8 @@ pacman::p_load(tidyverse, rpart, rpart.plot, caret,
 
 ### The Dataset: Spam E-Mail
 
+This dataset contains variables and their frequencies which can help in defining that the variable containing in particular email is spam or not according to the variables frequency in the email.
+
 ```{r}
 spam <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-08-15/spam.csv')
 
@@ -59,12 +61,14 @@ tree_default <- spam |>
 tree_default
 ```
 
+Above data = \_ specfies where the data in spam will go
+
 ```{r}
 library(rpart.plot)
 rpart.plot(tree_default, extra = 2)
 ```
 
-Decision Tree is created, as we can see it is predicting if the email is spam or not based on the frequency of words.
+Following Decision Tree is showing how the email is classified when value of variables is compared, example if dollar is smaller than 0.056 it will go to no etc.
 
 ### **Create a Full Tree**
 
@@ -90,6 +94,8 @@ Training error on tree with pre-pruning
 predict(tree_default, spam) |> head ()
 ```
 
+Here above table shows about loss in prediction of the emails based on the tree that we formed.
+
 ```{r}
 pred <- predict(tree_default, spam, type="class")
 head(pred)
@@ -110,12 +116,14 @@ error <- confusion_table |> sum() - correct
 error
 ```
 
+We get accuracy by using the following formula
+
 ```{r}
 accuracy <- correct / (correct + error)
 accuracy
 ```
 
-Use a function for accuracy:
+Now calculating accuracy using a function.
 
 ```{r}
 accuracy <- function(truth, prediction) {
@@ -125,6 +133,8 @@ accuracy <- function(truth, prediction) {
 
 accuracy(spam |> pull(yesno), pred)
 ```
+
+Here we get accuracy of 0.86.
 
 Training error of the full tree
 
@@ -143,6 +153,8 @@ confusionMatrix(data = pred,
 
 ### **Make Predictions for New Data:**
 
+Now we will make our own email giving random frequency to the variables.
+
 ```{r}
 new_mail <- tibble( crl.tot = 200, dollar = 0.1 , bang = 0.371 , money = 0.03 , n000 = 0 , make = 0.3 )
 ```
@@ -158,6 +170,8 @@ new_mail
 ```{r}
 predict(tree_default , new_mail, type = "class")
 ```
+
+Now here we made a prediction for the testing data we made and we got it as a spam email i.e. "y"
 
 ## **Model Evaluation with Caret:**
 
@@ -189,7 +203,7 @@ set.seed(2000)
 
 ### **Hold out Test Data**
 
-Test data is not used in the model building process and set aside purely for testing the model. Here, we partition data the 80% training and 20% testing.
+Here we are going to partitioned the data in 80% and 20% keeping aside the test data, as it is not used for model building.
 
 ```{r}
 unique(spam$yesno)
@@ -206,7 +220,7 @@ spam_test <- spam |> slice(-inTrain)
 
 ### **Learn a Model and Tune Hyperparameters on the Training Data**
 
-The package `caret` combines training and validation for hyperparameter tuning into a single function called `train()`. It internally splits the data into training and validation sets and thus will provide you with error estimates for different hyperparameter settings. `trainControl` is used to choose how testing is performed.
+We will use caret package to combine training and validation for hyperparameter tuning in single function train(), It will give error estimates for different parameter settings.
 
 ```{r}
 fit <- spam_train |>
@@ -220,10 +234,14 @@ fit <- spam_train |>
 fit
 ```
 
+Here we are using 10-Fold Cross validation
+
 ```{r}
 rpart.plot(fit$finalModel, extra = 2,
   box.palette = list("Gy", "Gn", "Bu", "Bn", "Or", "Rd", "Pu"))
 ```
+
+Train built 10 trees using training fold which we put the value 10 for each value of cp, giving the value of accuracy and kappa.
 
 A model using the best tuning parameters and using all the data supplied to `train()` is available as `fit$finalModel`.
 
